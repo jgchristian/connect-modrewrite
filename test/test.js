@@ -519,6 +519,29 @@ describe('Connect-modrewrite', function() {
     });
   });
 
+  describe('QSA flag respected for redirect', function() {
+    it('should append the original request query string to redirect Location if QSA flag set', function() {
+      var middleware = modRewrite(['/pages/(.+) /page.php?page=$1 [R,QSA]']);
+      var url = '/pages/123?one=two';
+      var req = {
+        connection : { encrypted : false },
+        header : function() {},
+        headers : { host : 'test.com' },
+        url : url
+      };
+      var res = {
+        setHeader : function() {},
+        writeHead : sinon.spy(),
+        end : sinon.spy()
+      };
+      var next = function() {};
+      middleware(req, res, next);
+      res.writeHead.should.have.been.calledWith(301, { Location : 'http://test.com/page.php?page=123&one=two'});
+      res.end.should.have.been.calledOnce;
+      res.end.should.have.been.calledAfter(res.writeHead);
+    });
+  });
+
   describe('Original request query string dropped if QSA flag not set', function() {
     it('should drop the original request query string if QSA flag not set', function() {
       var middleware = modRewrite(['/pages/(.+) /page.php?page=$1 []']);
@@ -537,6 +560,29 @@ describe('Connect-modrewrite', function() {
       var next = function() {};
       middleware(req, res, next);
       expect(req.url).to.equal('/page.php?page=123');
+    });
+  });
+
+  describe('Original request query string dropped if QSA flag not set for redirect', function() {
+    it('should drop the original request query string if QSA flag not set for redirect', function() {
+      var middleware = modRewrite(['/pages/(.+) /page.php?page=$1 [R]']);
+      var url = '/pages/123?one=two';
+      var req = {
+        connection : { encrypted : false },
+        header : function() {},
+        headers : { host : 'test.com' },
+        url : url
+      };
+      var res = {
+        setHeader : function() {},
+        writeHead : sinon.spy(),
+        end : sinon.spy()
+      };
+      var next = function() {};
+      middleware(req, res, next);
+      res.writeHead.should.have.been.calledWith(301, { Location : 'http://test.com/page.php?page=123'});
+      res.end.should.have.been.calledOnce;
+      res.end.should.have.been.calledAfter(res.writeHead);
     });
   });
 
