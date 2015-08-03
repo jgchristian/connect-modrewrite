@@ -25,6 +25,7 @@ var flagSyntax = /\[([^\]]+)]$/;
 var partsSyntax = /\s+|\t+/g;
 var httpsSyntax = /^https/;
 var querySyntax = /\?(.*)/;
+var queryStringAppendSyntax = /QSA/;
 
 /**
  * Export `API`
@@ -46,15 +47,9 @@ module.exports = function(rules) {
         }
       }
 
-      var location;
-      if(/\:\/\//.test(rule.replace)) {
-        location = req.url.replace(rule.regexp, rule.replace);
-      }
-      else {
-        location = protocol + '://' + req.headers.host + req.url.replace(rule.regexp, rule.replace);
-      }
+      var path = url.parse(req.url).pathname;
 
-      var match = rule.regexp.test(req.url);
+      var match = rule.regexp.test(path);
 
       // If not match
       if(!match) {
@@ -102,6 +97,13 @@ module.exports = function(rules) {
 
       // Redirect
       if(rule.redirect) {
+        var location;
+        if(/\:\/\//.test(rule.replace)) {
+          location = path.replace(rule.regexp, rule.replace) + _appendOriginalQueryStringIfApplicable(req.url, rule);
+        } else {
+          location = protocol + '://' + req.headers.host + path.replace(rule.regexp, rule.replace) + _appendOriginalQueryStringIfApplicable(req.url, rule);
+        }
+
         res.writeHead(rule.redirect, {
           Location : location
         });
@@ -113,7 +115,7 @@ module.exports = function(rules) {
       // Rewrite
       if(!rule.inverted) {
         if (rule.replace !== '-') {
-          req.url = req.url.replace(rule.regexp, rule.replace);
+          req.url = path.replace(rule.regexp, rule.replace) + _appendOriginalQueryStringIfApplicable(req.url, rule);
         }
         return rule.last;
       }
@@ -177,7 +179,8 @@ function _parse(rules) {
       forbidden: forbiddenSyntax.test(flags),
       gone: goneSyntax.test(flags),
       type: typeValue ? (typeof typeValue[1] !== 'undefined' ? typeValue[1] : 'text/plain') : false,
-      host: hostValue ? new RegExp(hostValue[1]) : false
+      host: hostValue ? new RegExp(hostValue[1]) : false,
+      queryStringAppend: queryStringAppendSyntax.test(flags)
     };
   });
 }
@@ -242,4 +245,47 @@ function _getRequestOpts(req, rule) {
   delete opts.headers['host'];
 
   return opts;
+}
+
+/**
+  * From: http://httpd.apache.org/docs/2.2/mod/mod_rewrite.html
+  * Modifying the Query String
+  * 
+  * By default, the query string is passed through unchanged. You can, however, create URLs in the substitution string containing a query string part. Simply use a question mark inside the substitution string to indicate that the following text should be re-injected into the query string. When you want to erase an existing query string, end the substitution string with just a question mark. To combine new and old query strings, use the [QSA] flag.
+  *       
+  * From: http://httpd.apache.org/docs/2.2/rewrite/flags.html#flag_qsa
+  *  
+  * When the replacement URI contains a query string, the default behavior of RewriteRule is to discard the existing query string, and replace it with the newly generated one. Using the [QSA] flag causes the query strings to be combined.
+  * Consider the following rule:
+  *
+  * RewriteRule /pages/(.+) /page.php?page=$1 [QSA]
+  * With the [QSA] flag, a request for /pages/123?one=two will be mapped to /page.php?page=123&one=two. Without the [QSA] flag, that same request will be mapped to /page.php?page=123 - that is, the existing query string will be discarded.
+  */
+function _appendOriginalQueryStringIfApplicable(originalRequestURL, rule) {
+
+  var queryValue = querySyntax.exec(originalRequestURL);
+
+  if (!queryValue || !queryValue[1]) {
+    return "";
+  }
+
+  var result;
+  if (querySyntax.test(rule.replace)) {
+      // Substitution string contains a query string.  
+      // mod_rewrite behaviour is to drop the existing query string unless QSA flag is specified
+      if (rule.queryStringAppend) {
+         // Append the original request query string
+        result = "&" + queryValue[1];
+
+      } else {
+        // Take the substition string
+        result = "";
+      }
+  } else {
+      // Substitution string does not contain a query string
+      // Pass the query string through
+      result = "?" + queryValue[1];
+  }
+
+  return result;
 }
