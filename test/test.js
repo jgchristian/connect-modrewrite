@@ -476,4 +476,68 @@ describe('Connect-modrewrite', function() {
       res.writeHead.should.have.not.been.calledWith(410);
     });
   });
+
+  describe('Query string not included in comparison', function() {
+    it('should only consider the url path when determining a rule match', function() {
+      var middleware = modRewrite(['/a$ /b [L]']);
+      var url = '/a?b=c';
+      var req = {
+        connection : { encrypted : false },
+        header : function() {},
+        headers : { host : 'test.com' },
+        url : url
+      };
+      var res = {
+        setHeader : function() {},
+        writeHead : sinon.spy(),
+        end : sinon.spy()
+      };
+      var next = function() {};
+      middleware(req, res, next);
+      expect(req.url).to.equal('/b?b=c');
+    });
+  });
+
+  describe('QSA flag respected', function() {
+    it('should append the original request query string if QSA flag set', function() {
+      var middleware = modRewrite(['/pages/(.+) /page.php?page=$1 [QSA]']);
+      var url = '/pages/123?one=two';
+      var req = {
+        connection : { encrypted : false },
+        header : function() {},
+        headers : { host : 'test.com' },
+        url : url
+      };
+      var res = {
+        setHeader : function() {},
+        writeHead : sinon.spy(),
+        end : sinon.spy()
+      };
+      var next = function() {};
+      middleware(req, res, next);
+      expect(req.url).to.equal('/page.php?page=123&one=two');
+    });
+  });
+
+  describe('Original request query string dropped if QSA flag not set', function() {
+    it('should drop the original request query string if QSA flag not set', function() {
+      var middleware = modRewrite(['/pages/(.+) /page.php?page=$1 []']);
+      var url = '/pages/123?one=two';
+      var req = {
+        connection : { encrypted : false },
+        header : function() {},
+        headers : { host : 'test.com' },
+        url : url
+      };
+      var res = {
+        setHeader : function() {},
+        writeHead : sinon.spy(),
+        end : sinon.spy()
+      };
+      var next = function() {};
+      middleware(req, res, next);
+      expect(req.url).to.equal('/page.php?page=123');
+    });
+  });
+
 });
