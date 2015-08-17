@@ -1,5 +1,16 @@
-TEMPORARY TEST FORK of connect-modrewrite
-========================
+Fork Description
+================
+Fork of [connect-modrewrite](https://github.com/tinganho/connect-modrewrite) to bring query string support inline with the httpd implementation
+
+Changes in this fork
+- (Breaking Change) Rewrite rules are only matched on the requested URL path
+  - Importantly, query strings are *excluded* when matching
+- (Breaking Change) Query strings are handled as follows:
+  - If the substitution string does not contains a query string, the query string from the original request URL is appended to the rewritten URL
+  - If the substitution string does contains a query string,
+    - If the QSA (Query String Append) flag is set, the query string from the original request URL is appended to substitution string's query string when rewriting the  URL
+    - Else, the query string from the original request URL is dropped and only substitution string's query string is included when rewriting the URL
+
 
 connect-modrewrite [![Build Status](https://travis-ci.org/tinganho/connect-modrewrite.png)](https://travis-ci.org/tinganho/connect-modrewrite)
 ========================
@@ -80,6 +91,9 @@ Sets content-type to the specified one.
 
 ### Host [H], \[H=*\] (replace * with a regular expression that match a hostname)
 Match on host.
+
+### Query String Append [QSA]
+Appends any query string from the original request URL to any query string created in the rewrite target.
 
 For more info about available flags, please go to the Apache page:
 http://httpd.apache.org/docs/current/rewrite/flags.html
