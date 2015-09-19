@@ -46,7 +46,7 @@ module.exports = function(rules) {
           return false;
         }
       }
-
+      
       var path = url.parse(req.url).pathname;
 
       var match = rule.regexp.test(path);
@@ -98,11 +98,16 @@ module.exports = function(rules) {
       // Redirect
       if(rule.redirect) {
         var location;
+        var locationProtocolAndHost;
         if(/\:\/\//.test(rule.replace)) {
-          location = path.replace(rule.regexp, rule.replace) + _appendOriginalQueryStringIfApplicable(req.url, rule);
+          // Replacement rule contains protocol so assume absolute URL.  
+          locationProtocolAndHost = protocol + "://" + url.parse(rule.replace).host;
         } else {
-          location = protocol + '://' + req.headers.host + path.replace(rule.regexp, rule.replace) + _appendOriginalQueryStringIfApplicable(req.url, rule);
+          // Else it's a relative URL.  For maximum compatibility we want to set Location: to an absolute URL, so take the host from the original request
+          locationProtocolAndHost = protocol + "://" + req.headers.host;
         }
+        // As we only matched on the path, we'll only use the path as the input string when applying the regex
+        location = locationProtocolAndHost + url.parse(req.url).pathname.replace(rule.regexp, url.parse(rule.replace).path) + _appendOriginalQueryStringIfApplicable(req.url, rule);
 
         res.writeHead(rule.redirect, {
           Location : location
@@ -263,9 +268,9 @@ function _getRequestOpts(req, rule) {
   */
 function _appendOriginalQueryStringIfApplicable(originalRequestURL, rule) {
 
-  var queryValue = querySyntax.exec(originalRequestURL);
+  var reqQueryValue = querySyntax.exec(originalRequestURL);
 
-  if (!queryValue || !queryValue[1]) {
+  if (!reqQueryValue || !reqQueryValue[1]) {
     return "";
   }
 
@@ -275,7 +280,7 @@ function _appendOriginalQueryStringIfApplicable(originalRequestURL, rule) {
       // mod_rewrite behaviour is to drop the existing query string unless QSA flag is specified
       if (rule.queryStringAppend) {
          // Append the original request query string
-        result = "&" + queryValue[1];
+        result = "&" + reqQueryValue[1];
 
       } else {
         // Take the substition string
@@ -284,7 +289,7 @@ function _appendOriginalQueryStringIfApplicable(originalRequestURL, rule) {
   } else {
       // Substitution string does not contain a query string
       // Pass the query string through
-      result = "?" + queryValue[1];
+      result = "?" + reqQueryValue[1];
   }
 
   return result;
