@@ -311,6 +311,26 @@ describe('Connect-modrewrite', function() {
       res.end.should.have.been.calledAfter(res.writeHead);
     });
 
+    it('should be able to set a rewrite without hostname and protocol if x-use-relative-redirects is set', function() {
+      var middleware = modRewrite(['/(.*) /$1 [R]']);
+      var req = {
+        connection : { encrypted : false },
+        header : function() {},
+        headers : { host : 'localhost', "x-use-relative-redirects": true },
+        url : '/a'
+      };
+      var res = {
+        setHeader : function() {},
+        writeHead : sinon.spy(),
+        end : sinon.spy()
+      };
+      var next = function() {};
+      middleware(req, res, next);
+      res.writeHead.should.have.been.calledWith(301, { Location : '/a'});
+      res.end.should.have.been.calledOnce;
+      res.end.should.have.been.calledAfter(res.writeHead);
+    });
+
     it('should set custom status code if rewrite custom flag is set', function() {
       var middleware = modRewrite(['/a /b [R=307]']);
       var req = {

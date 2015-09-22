@@ -10,7 +10,12 @@ Changes in this fork
   - If the substitution string does contains a query string,
     - If the QSA (Query String Append) flag is set, the query string from the original request URL is appended to substitution string's query string when rewriting the  URL
     - Else, the query string from the original request URL is dropped and only substitution string's query string is included when rewriting the URL
-
+- New feature for dev testing to support relative redirects; 
+  - if...
+    - processing a redirect rule, and 
+    - the redirect target URL does not contain a protocol+host, and 
+    - the request has the header "x-use-relative-redirects" 
+  - ...then we exclude the protocol and host when constructing the Location redirect value
 
 connect-modrewrite [![Build Status](https://travis-ci.org/tinganho/connect-modrewrite.png)](https://travis-ci.org/tinganho/connect-modrewrite)
 ========================

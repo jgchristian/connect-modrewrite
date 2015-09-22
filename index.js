@@ -103,8 +103,14 @@ module.exports = function(rules) {
           // Replacement rule contains protocol so assume absolute URL.  
           locationProtocolAndHost = protocol + "://" + url.parse(rule.replace).host;
         } else {
-          // Else it's a relative URL.  For maximum compatibility we want to set Location: to an absolute URL, so take the host from the original request
-          locationProtocolAndHost = protocol + "://" + req.headers.host;
+          // Else it's a relative replacement URL.  
+          // By default, for maximum compatibility we want to set Location: to an absolute URL, so take the host from the original request
+          // If the "x-use-relative-redirects" request header is set, then just return the path
+          if (req.headers['x-use-relative-redirects']) {
+            locationProtocolAndHost = "";  
+          } else {
+            locationProtocolAndHost = protocol + "://" + req.headers.host;  
+          }
         }
         // As we only matched on the path, we'll only use the path as the input string when applying the regex
         location = locationProtocolAndHost + url.parse(req.url).pathname.replace(rule.regexp, url.parse(rule.replace).path) + _appendOriginalQueryStringIfApplicable(req.url, rule);
